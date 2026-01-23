@@ -30,6 +30,7 @@ class ProduitController extends Controller
 
         $data = $request->all();
         $data['user_id'] = Auth::id();
+        $data['est_disponible'] = $request->has('est_disponible');
 
         if ($request->hasFile('photo')) {
             $data['photo'] = $request->file('photo')->store('produits', 'public');
@@ -58,6 +59,7 @@ class ProduitController extends Controller
         ]);
 
         $data = $request->only('nom', 'description', 'prix');
+        $data['est_disponible'] = $request->has('est_disponible');
 
         if ($request->hasFile('photo')) {
             if ($produit->photo) {
@@ -82,5 +84,21 @@ class ProduitController extends Controller
         $produit->delete();
 
         return redirect()->route('entrepreneur.produits.index')->with('success', 'Produit supprimé');
+    }
+
+    public function toggleStatus(Produit $produit)
+    {
+        // On vérifie que le produit appartient bien à l'entrepreneur
+        if ($produit->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $produit->update([
+            'est_disponible' => !$produit->est_disponible
+        ]);
+
+        $message = $produit->est_disponible ? 'Produit marqué comme disponible' : 'Produit marqué comme épuisé';
+
+        return redirect()->back()->with('success', $message);
     }
 }

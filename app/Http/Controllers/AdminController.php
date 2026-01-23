@@ -26,15 +26,99 @@ class AdminController extends Controller
     public function index()
     {
         $demandes = User::where('role', 'entrepreneur_en_attente')->get();
-        return view('admin.dashboard', compact('demandes'));
+        $pendingPlayersCount = User::where('role', 'client')->where('statut_joueur', 'en_attente')->count();
+        return view('admin.dashboard', compact('demandes', 'pendingPlayersCount'));
+    }
+
+    // Retourne les statistiques en temps réel au format JSON
+    public function statistiquesData()
+    {
+        $stats = [
+            'entrepreneurs_approuves' => User::where('role', 'entrepreneur_approuve')->count(),
+            'demandes_attente' => User::where('role', 'entrepreneur_en_attente')->count(),
+            'approuves_aujourdhui' => User::where('role', 'entrepreneur_approuve')
+                ->whereDate('updated_at', now()->toDateString())
+                ->whereColumn('updated_at', '>', 'created_at')
+                ->count(),
+            'rejetes_aujourdhui' => User::where('role', 'rejeté')
+                ->whereDate('updated_at', now()->toDateString())
+                ->whereColumn('updated_at', '>', 'created_at')
+                ->count(),
+            'total_commandes' => \App\Models\Commande::count(),
+            'total_produits' => \App\Models\Produit::count(),
+            'commandes_semaine' => \App\Models\Commande::where('created_at', '>=', now()->startOfWeek())->count(),
+            'commandes_mois' => \App\Models\Commande::where('created_at', '>=', now()->startOfMonth())->count(),
+            'nouveaux_entrepreneurs' => User::where('role', 'entrepreneur_approuve')
+                ->where('created_at', '>=', now()->startOfWeek())
+                ->count(),
+            'chiffre_affaires_mois' => $this->calculerChiffreAffairesMois(),
+        ];
+
+        // Récupérer les 5 entrepreneurs avec le plus de commandes
+        $top_entrepreneurs = User::where('role', 'entrepreneur_approuve')
+            ->withCount([
+                'commandes' => function ($query) {
+                    $query->where('created_at', '>=', now()->subMonth());
+                }
+            ])
+            ->orderByDesc('commandes_count')
+            ->limit(5)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'nom_entreprise' => $user->nom_entreprise,
+                    'email' => $user->email,
+                    'commandes_count' => $user->commandes_count,
+                    'created_at' => $user->created_at->format('Y-m-d H:i:s')
+                ];
+            });
+
+        // Récupérer les activités récentes (ex: 10 dernières)
+        $activites_recentes = [];
+        /* \App\Models\Activite::with('user')
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(function($activite) {
+                return [
+                    'id' => $activite->id,
+                    'type' => $activite->type,
+                    'description' => $activite->description,
+                    'user_name' => $activite->user ? $activite->user->nom_entreprise : 'Système',
+                    'created_at' => $activite->created_at->format('Y-m-d H:i:s'),
+                    'time_ago' => $activite->created_at->diffForHumans()
+                ];
+            }); */
+
+        return response()->json([
+            'stats' => $stats,
+            'top_entrepreneurs' => $top_entrepreneurs,
+            'activites_recentes' => $activites_recentes,
+            'updated_at' => now()->format('Y-m-d H:i:s')
+        ]);
+    }
+
+    public function demandes()
+    {
+        $demandes = User::where('role', 'entrepreneur_en_attente')
+            ->orderByDesc('created_at')
+            ->get(['id', 'email', 'nom_entreprise', 'created_at']);
+
+        return response()->json([
+            'count' => $demandes->count(),
+            'demandes' => $demandes,
+        ]);
     }
 
     // Affiche les commandes par entrepreneur
     public function commandesEntrepreneurs()
     {
-        $entrepreneurs = User::where('role', 'entrepreneur_approuve')->with(['produits.commandes' => function($q) {
-            $q->with('produits');
-        }])->get();
+        $entrepreneurs = User::where('role', 'entrepreneur_approuve')->with([
+            'produits.commandes' => function ($q) {
+                $q->with('produits');
+            }
+        ])->get();
         return view('admin.commandes-entrepreneurs', compact('entrepreneurs'));
     }
 
@@ -56,29 +140,31 @@ class AdminController extends Controller
 
         // Top 5 des entrepreneurs
         $top_entrepreneurs = User::where('role', 'entrepreneur_approuve')
-            ->with(['produits.commandes' => function($q) {
-                $q->with('produits');
-            }])
+            ->with([
+                'produits.commandes' => function ($q) {
+                    $q->with('produits');
+                }
+            ])
             ->get()
-            ->map(function($entrepreneur) {
+            ->map(function ($entrepreneur) {
                 $commandes = collect();
                 $total_ventes = 0;
-                
-                foreach($entrepreneur->produits as $produit) {
-                    if($produit->commandes) {
-                        foreach($produit->commandes as $commande) {
+
+                foreach ($entrepreneur->produits as $produit) {
+                    if ($produit->commandes) {
+                        foreach ($produit->commandes as $commande) {
                             $commandes->push($commande);
-                            
+
                             // Calculer les ventes pour ce produit
-                            if($produit->prix && $produit->pivot && $produit->pivot->quantite) {
+                            if ($produit->prix && $produit->pivot && $produit->pivot->quantite) {
                                 $total_ventes += $produit->prix * $produit->pivot->quantite;
                             }
                         }
                     }
                 }
-                
+
                 $commandes = $commandes->unique('id');
-                
+
                 return (object) [
                     'id' => $entrepreneur->id,
                     'nom_entreprise' => $entrepreneur->nom_entreprise,
@@ -92,13 +178,13 @@ class AdminController extends Controller
 
         // Activités récentes (simulation)
         $activites_recentes = collect();
-        
+
         // Ajouter les entrepreneurs récemment approuvés
         $entrepreneurs_recents = User::where('role', 'entrepreneur_approuve')
             ->where('created_at', '>=', Carbon::now()->subDays(7))
             ->get();
-            
-        foreach($entrepreneurs_recents as $entrepreneur) {
+
+        foreach ($entrepreneurs_recents as $entrepreneur) {
             $activites_recentes->push((object) [
                 'created_at' => $entrepreneur->created_at,
                 'nom_entreprise' => $entrepreneur->nom_entreprise,
@@ -106,16 +192,16 @@ class AdminController extends Controller
                 'details' => 'Entrepreneur approuvé'
             ]);
         }
-        
+
         // Ajouter les commandes récentes
         $commandes_recentes = Commande::where('created_at', '>=', Carbon::now()->subDays(7))
             ->with('produits.user')
             ->get();
-            
-        foreach($commandes_recentes as $commande) {
-            if($commande->produits) {
-                foreach($commande->produits as $produit) {
-                    if($produit && $produit->user) {
+
+        foreach ($commandes_recentes as $commande) {
+            if ($commande->produits) {
+                foreach ($commande->produits as $produit) {
+                    if ($produit && $produit->user) {
                         $activites_recentes->push((object) [
                             'created_at' => $commande->created_at,
                             'nom_entreprise' => $produit->user->nom_entreprise,
@@ -126,14 +212,14 @@ class AdminController extends Controller
                 }
             }
         }
-        
+
         // Ajouter les nouveaux produits
         $produits_recents = Produit::where('created_at', '>=', Carbon::now()->subDays(7))
             ->with('user')
             ->get();
-            
-        foreach($produits_recents as $produit) {
-            if($produit->user) {
+
+        foreach ($produits_recents as $produit) {
+            if ($produit->user) {
                 $activites_recentes->push((object) [
                     'created_at' => $produit->created_at,
                     'nom_entreprise' => $produit->user->nom_entreprise,
@@ -142,7 +228,7 @@ class AdminController extends Controller
                 ]);
             }
         }
-        
+
         $activites_recentes = $activites_recentes->sortByDesc('created_at')->take(10);
 
         return view('admin.statistiques', compact('stats', 'top_entrepreneurs', 'activites_recentes'));
@@ -159,7 +245,7 @@ class AdminController extends Controller
     {
         $entrepreneurs = User::where('role', 'entrepreneur_approuve')->get();
         $restrictions = Restriction::with('entrepreneur')->orderBy('created_at', 'desc')->get();
-        
+
         return view('admin.restrictions', compact('entrepreneurs', 'restrictions'));
     }
 
@@ -242,53 +328,118 @@ class AdminController extends Controller
         $commandes_mois = Commande::where('created_at', '>=', Carbon::now()->startOfMonth())
             ->with('produits')
             ->get();
-            
+
         $total = 0;
-        foreach($commandes_mois as $commande) {
-            foreach($commande->produits as $produit) {
-                if($produit->prix && $produit->pivot && $produit->pivot->quantite) {
+        foreach ($commandes_mois as $commande) {
+            foreach ($commande->produits as $produit) {
+                if ($produit->prix && $produit->pivot && $produit->pivot->quantite) {
                     $total += $produit->prix * $produit->pivot->quantite;
                 }
             }
         }
-        
+
         return $total;
     }
 
     // Approuver un utilisateur
     public function approuver($id)
     {
-        $user = User::findOrFail($id);
+        try {
+            $user = User::findOrFail($id);
 
-        if ($user->role === 'entrepreneur_en_attente') {
-            $user->role = 'entrepreneur_approuve';
-            $user->motif_rejet = null; // Supprime motif si existait
-            $user->save();
-            // Suppression de l'envoi d'email
+            if ($user->role === 'entrepreneur_en_attente') {
+                $user->role = 'entrepreneur_approuve';
+                $user->motif_rejet = null; // Supprime le motif s'il existe
+                $user->save();
 
-            return redirect()->route('admin.dashboard')->with('status', "L'utilisateur {$user->email} a été approuvé.");
+                return response()->json([
+                    'success' => true,
+                    'message' => "L'utilisateur {$user->email} a été approuvé avec succès."
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => "Impossible d'approuver cet utilisateur."
+            ], 400);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => "Une erreur est survenue : " . $e->getMessage()
+            ], 500);
         }
-
-        return redirect()->route('admin.dashboard')->with('error', "Impossible d'approuver cet utilisateur.");
     }
 
     // Rejeter un utilisateur avec motif
     public function rejeter(Request $request, $id)
     {
-        $request->validate([
-            'motif_rejet' => 'required|string|max:500',
-        ]);
+        try {
+            $request->validate([
+                'motif_rejet' => 'required|string|max:500',
+            ]);
 
-        $user = User::findOrFail($id);
+            $user = User::findOrFail($id);
 
-        if ($user->role === 'entrepreneur_en_attente') {
-            $user->role = 'rejeté';
-            $user->motif_rejet = $request->motif_rejet;
-            $user->save();
+            if ($user->role === 'entrepreneur_en_attente') {
+                $user->role = 'rejeté';
+                $user->motif_rejet = $request->motif_rejet;
+                $user->save();
 
-            return redirect()->route('admin.dashboard')->with('status', "L'utilisateur {$user->email} a été rejeté.");
+                return response()->json([
+                    'success' => true,
+                    'message' => "L'utilisateur {$user->email} a été rejeté avec succès."
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => "Impossible de rejeter cet utilisateur."
+            ], 400);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => "Une erreur est survenue : " . $e->getMessage()
+            ], 500);
         }
+    }
 
-        return redirect()->route('admin.dashboard')->with('error', "Impossible de rejeter cet utilisateur.");
+    /**
+     * Gestion des Joueurs du Défi Elite Gold
+     */
+    public function joueursIndex()
+    {
+        $pendingPlayers = User::where('role', 'client')->where('statut_joueur', 'en_attente')->get();
+        $approvedPlayers = User::where('role', 'client')->where('statut_joueur', 'approuve')->get();
+        $rejectedPlayers = User::where('role', 'client')->where('statut_joueur', 'rejete')->get();
+
+        // Statistiques avancées
+        $stats = [
+            'total_pepites' => User::where('role', 'client')->sum('pepites'),
+            'count_or' => User::where('role', 'client')->where('rang', 'Or')->count(),
+            'count_argent' => User::where('role', 'client')->where('rang', 'Argent')->count(),
+            'count_bronze' => User::where('role', 'client')->where('rang', 'Bronze')->count(),
+        ];
+
+        return view('admin.joueurs', compact('pendingPlayers', 'approvedPlayers', 'rejectedPlayers', 'stats'));
+    }
+
+    public function validerJoueur($id)
+    {
+        $user = User::findOrFail($id);
+        $user->statut_joueur = 'approuve';
+        $user->save();
+
+        return redirect()->back()->with('status', "Le joueur {$user->nom_entreprise} a été approuvé !");
+    }
+
+    public function rejeterJoueur($id)
+    {
+        $user = User::findOrFail($id);
+        $user->statut_joueur = 'rejete';
+        $user->save();
+
+        return redirect()->back()->with('status', "La candidature de {$user->nom_entreprise} a été rejetée.");
     }
 }

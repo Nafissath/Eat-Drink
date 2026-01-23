@@ -1,518 +1,881 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="container-fluid px-4 py-4">
-    <!-- En-tête avec statistiques -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <h1 class="h3 mb-0 text-success">
-                        <i class="bi bi-person-check me-2"></i>Gestion des demandes d'approbation
+    <div class="luxury-dashboard">
+        <!-- Header Page -->
+        <div class="header-premium mb-5 animate-fade-in">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1 class="premium-title">
+                        <span class="text-gold"><i class="fas fa-crown me-3"></i></span>
+                        Tableau de Bord <span class="text-gold">Admin</span>
                     </h1>
-                    <p class="text-muted mb-0">Surveillez et gérez les demandes des entrepreneurs</p>
+                    <p class="premium-subtitle">Gestion exclusive des partenaires Eat&Drink</p>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-outline-success" onclick="refreshData()">
-                        <i class="bi bi-arrow-clockwise me-2"></i>Actualiser
-                    </button>
-                    <button class="btn btn-outline-info" onclick="exportData()">
-                        <i class="bi bi-download me-2"></i>Exporter
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Statistiques rapides -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-left-primary shadow h-100">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Demandes en attente
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $demandes->count() }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-clock-history fa-2x text-primary"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-left-success shadow h-100">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Approuvés aujourd'hui
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="approvedToday">0</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-check-circle fa-2x text-success"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-left-danger shadow h-100">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                Rejetés aujourd'hui
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="rejectedToday">0</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-x-circle fa-2x text-danger"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-left-info shadow h-100">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Temps moyen d'attente
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="avgWaitTime">2.5h</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="bi bi-stopwatch fa-2x text-info"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Messages de statut -->
-    @if(session('status'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bi bi-check-circle me-2"></i>{{ session('status') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    <!-- Filtres et recherche -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtres et recherche</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Rechercher</label>
-                            <input type="text" id="searchInput" class="form-control" placeholder="Email ou nom d'entreprise...">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Trier par</label>
-                            <select id="sortSelect" class="form-select">
-                                <option value="date_desc">Date (récent)</option>
-                                <option value="date_asc">Date (ancien)</option>
-                                <option value="email_asc">Email A-Z</option>
-                                <option value="email_desc">Email Z-A</option>
-                                <option value="entreprise_asc">Entreprise A-Z</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Statut</label>
-                            <select id="statusFilter" class="form-select">
-                                <option value="all">Tous</option>
-                                <option value="new">Nouvelles demandes</option>
-                                <option value="old">Anciennes demandes</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2 mb-3">
-                            <label class="form-label">&nbsp;</label>
-                            <button class="btn btn-primary w-100" onclick="applyFilters()">
-                                <i class="bi bi-search me-2"></i>Filtrer
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Liste des demandes -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Demandes en attente</h6>
-                    <span class="badge bg-light text-success fs-6">{{ $demandes->count() }} demandes</span>
-                </div>
-                <div class="card-body p-0">
-                    @if($demandes->isEmpty())
-                        <div class="text-center py-5">
-                            <div class="mb-3">
-                                <i class="bi bi-check-circle text-success" style="font-size: 4rem; opacity: 0.7;"></i>
-                            </div>
-                            <h5 class="text-muted mb-2">Aucune demande en attente</h5>
-                            <p class="text-muted">Toutes les demandes ont été traitées !</p>
-                        </div>
-                    @else
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0" id="demandesTable">
-                                <thead class="table-success">
-                                    <tr>
-                                        <th scope="col" class="text-center">
-                                            <input type="checkbox" id="selectAll" class="form-check-input">
-                                        </th>
-                                        <th scope="col">📧 Email</th>
-                                        <th scope="col">🏢 Entreprise</th>
-                                        <th scope="col">📅 Date de demande</th>
-                                        <th scope="col">⏱️ Temps d'attente</th>
-                                        <th scope="col">⚙️ Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($demandes as $user)
-                                        <tr class="demande-row" data-id="{{ $user->id }}">
-                                            <td class="text-center">
-                                                <input type="checkbox" class="form-check-input demande-checkbox" value="{{ $user->id }}">
-                                            </td>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar-sm me-3">
-                                                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                            <span class="text-white fw-bold">{{ strtoupper(substr($user->email, 0, 1)) }}</span>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div class="fw-bold">{{ $user->email }}</div>
-                                                        <small class="text-muted">Demande #{{ $user->id }}</small>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="fw-bold text-success">{{ $user->nom_entreprise }}</div>
-                                                <small class="text-muted">Entrepreneur</small>
-                                            </td>
-                                            <td>
-                                                <div>{{ $user->created_at->format('d/m/Y') }}</div>
-                                                <small class="text-muted">{{ $user->created_at->format('H:i') }}</small>
-                                            </td>
-                                            <td>
-                                                @php
-                                                    $waitTime = $user->created_at->diff(now());
-                                                    $waitHours = $waitTime->h + ($waitTime->days * 24);
-                                                @endphp
-                                                <div class="d-flex align-items-center">
-                                                    <span class="badge bg-{{ $waitHours > 24 ? 'danger' : ($waitHours > 12 ? 'warning' : 'success') }} me-2">
-                                                        {{ $waitHours }}h
-                                                    </span>
-                                                    <small class="text-muted">{{ $waitTime->format('%d jours, %h heures') }}</small>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                                                                         <button type="button" class="btn btn-success btn-sm" onclick="approveUser('{{ $user->id }}')">
-                                                         <i class="bi bi-check-lg me-1"></i>Approuver
-                                                     </button>
-                                                     <button type="button" class="btn btn-danger btn-sm" onclick="showRejectModal('{{ $user->id }}')">
-                                                         <i class="bi bi-x-lg me-1"></i>Rejeter
-                                                     </button>
-                                                     <button type="button" class="btn btn-info btn-sm" onclick="viewDetails('{{ $user->id }}')">
-                                                         <i class="bi bi-eye me-1"></i>Détails
-                                                     </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actions en lot -->
-    <div class="row mt-4" id="bulkActions" style="display: none;">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-warning text-dark">
-                    <h6 class="mb-0"><i class="bi bi-gear me-2"></i>Actions en lot</h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-success" onclick="bulkApprove()">
-                            <i class="bi bi-check-lg me-2"></i>Approuver la sélection
+                <div class="col-auto">
+                    <div class="btn-group-luxury">
+                        <button class="btn-luxury-action" onclick="refreshData()">
+                            <i class="fas fa-sync-alt me-2"></i> Actualiser
                         </button>
-                        <button class="btn btn-danger" onclick="bulkReject()">
-                            <i class="bi bi-x-lg me-2"></i>Rejeter la sélection
+                        <button class="btn-luxury-action secondary" onclick="exportData()">
+                            <i class="fas fa-file-export me-2"></i> Exporter
                         </button>
-                        <span class="text-muted align-self-center ms-3">
-                            <span id="selectedCount">0</span> demandes sélectionnées
-                        </span>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Modal de rejet -->
-<div class="modal fade" id="rejectModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle me-2"></i>Rejeter la demande
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Êtes-vous sûr de vouloir rejeter cette demande ?</p>
-                <form id="rejectForm">
-                    <input type="hidden" id="rejectUserId" name="user_id">
-                    <div class="mb-3">
-                        <label for="motifRejet" class="form-label">Motif du rejet *</label>
-                        <textarea class="form-control" id="motifRejet" name="motif_rejet" rows="4" 
-                                  placeholder="Expliquez les raisons du rejet..." required></textarea>
+        @if($pendingPlayersCount > 0)
+            <div class="alert bg-gold-luxury border-0 text-dark rounded-4 mb-5 p-4 animate-fade-in shadow-lg">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-dark rounded-circle p-3 text-gold">
+                            <i class="fas fa-trophy fa-lg"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-800">Nouveaux Joueurs pour le Défi Elite Gold</h5>
+                            <p class="mb-0 opacity-75">Il y a <strong>{{ $pendingPlayersCount }}</strong> candidatures de
+                                joueurs en attente de validation.</p>
+                        </div>
                     </div>
-                </form>
+                    <a href="{{ route('admin.joueurs.index') }}" class="btn btn-dark rounded-pill px-4 fw-700">
+                        VOIR LES JOUEURS <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-danger" onclick="confirmReject()">
-                    <i class="bi bi-x-lg me-2"></i>Confirmer le rejet
+        @endif
+
+        <!-- Quick Stats Grid -->
+        <div class="row g-4 mb-5 animate-fade-up">
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-stat-card">
+                    <div class="stat-icon-box bg-gold-gradient">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">DEMANDES EN ATTENTE</p>
+                        <h2 class="stat-value" id="pendingCount">{{ $demandes->count() }}</h2>
+                    </div>
+                    <div class="stat-glow gold"></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-stat-card">
+                    <div class="stat-icon-box bg-emerald-gradient">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">PARTENAIRES ACTIFS</p>
+                        <h2 class="stat-value" id="totalApproved">0</h2>
+                    </div>
+                    <div class="stat-glow emerald"></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-stat-card">
+                    <div class="stat-icon-box bg-blue-gradient">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">APPROUVÉS AUJOURD'HUI</p>
+                        <h2 class="stat-value" id="approvedToday">-</h2>
+                    </div>
+                    <div class="stat-glow blue"></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <a href="{{ route('admin.joueurs.index') }}" class="text-decoration-none">
+                    <div class="glass-stat-card border-gold-glow">
+                        <div class="stat-icon-box bg-gold-luxury">
+                            <i class="fas fa-users-cog"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p class="stat-label">JOUEURS EN ATTENTE</p>
+                            <h2 class="stat-value text-gold">{{ $pendingPlayersCount }}</h2>
+                        </div>
+                        <div class="stat-glow gold"></div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="glass-card-luxury mb-5 p-4 animate-fade-up" style="animation-delay: 0.1s;">
+            <div class="d-flex align-items-center mb-4">
+                <i class="fas fa-sliders-h text-gold me-3 fs-4"></i>
+                <h5 class="mb-0 fw-bold">Raffinement de la Recherche</h5>
+            </div>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="premium-label">RECHERCHER</label>
+                    <div class="luxury-input-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" class="luxury-input" placeholder="Email ou établissement...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="premium-label">TRIER PAR</label>
+                    <select id="sortSelect" class="luxury-select">
+                        <option value="date_desc">Date (Récente)</option>
+                        <option value="date_asc">Date (Ancienne)</option>
+                        <option value="entreprise_asc">Établissement A-Z</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="premium-label">FILTRE STATUT</label>
+                    <select id="statusFilter" class="luxury-select">
+                        <option value="all">Tout Afficher</option>
+                        <option value="new">Nouvelles Demandes</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn-premium-search w-100" onclick="applyFilters()">
+                        FILTRER <i class="fas fa-filter ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Table -->
+        <div class="glass-card-luxury p-0 overflow-hidden animate-fade-up" style="animation-delay: 0.2s;">
+            <div class="card-header-luxury d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-list-check text-gold me-3"></i>
+                    <h5 class="mb-0 fw-bold">Demandes Premium en Attente</h5>
+                </div>
+                <span class="badge-luxury" id="pendingBadge">{{ $demandes->count() }} CANDIDATURES</span>
+            </div>
+
+            <div class="luxury-table-container">
+                @if($demandes->isEmpty())
+                    <div class="empty-state-luxury text-center py-5">
+                        <div class="empty-icon-box mb-4">
+                            <i class="fas fa-check-double text-emerald"></i>
+                        </div>
+                        <h4>Excellence Atteinte</h4>
+                        <p class="text-white-50">Toutes les demandes ont été traitées avec succès.</p>
+                    </div>
+                @else
+                    <table class="luxury-table">
+                        <thead>
+                            <tr>
+                                <th class="text-center" width="60">
+                                    <div class="luxury-checkbox-wrapper">
+                                        <input type="checkbox" id="selectAll" class="luxury-checkbox">
+                                    </div>
+                                </th>
+                                <th>PARTENAIRE</th>
+                                <th>ÉTABLISSEMENT</th>
+                                <th>TEMPS D'ATTENTE</th>
+                                <th class="text-end">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="demandesTbody">
+                            @foreach($demandes as $user)
+                                <tr class="luxury-row animate-row" data-id="{{ $user->id }}">
+                                    <td class="text-center">
+                                        <div class="luxury-checkbox-wrapper">
+                                            <input type="checkbox" class="luxury-checkbox demande-checkbox" value="{{ $user->id }}">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-luxury">
+                                                {{ strtoupper(substr($user->email, 0, 1)) }}
+                                            </div>
+                                            <div>
+                                                <div class="row-main-text">{{ $user->email }}</div>
+                                                <div class="row-sub-text">Candidat #{{ $user->id }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-gold fw-bold">{{ $user->nom_entreprise }}</div>
+                                        <div class="row-sub-text">Entrepreneur Gastronomique</div>
+                                    </td>
+                                    <td>
+                                        @php
+                                            $waitTime = $user->created_at->diff(now());
+                                            $waitHours = $waitTime->h + ($waitTime->days * 24);
+                                        @endphp
+                                        <div
+                                            class="wait-badge-luxury {{ $waitHours > 24 ? 'urgent' : ($waitHours > 12 ? 'warning' : 'optimal') }}">
+                                            <i class="far fa-clock me-1"></i> {{ $waitHours }}h d'attente
+                                        </div>
+                                        <div class="row-sub-text mt-1">Depuis le {{ $user->created_at->format('d/m H:i') }}</div>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="action-stack">
+                                            <button class="btn-action-luxury success" title="Approuver"
+                                                onclick="approveUser('{{ $user->id }}')">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="btn-action-luxury danger" title="Rejeter"
+                                                onclick="showRejectModal('{{ $user->id }}')">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                            <button class="btn-action-luxury info" title="Détails"
+                                                onclick="viewDetails('{{ $user->id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </div>
+        </div>
+
+        <!-- Bulk Actions Overlay -->
+        <div id="bulkActions" class="bulk-actions-floating animate-slide-up" style="display: none;">
+            <div class="d-flex align-items-center gap-4">
+                <p class="mb-0 fw-bold"><span id="selectedCount" class="text-gold">0</span> éléments sélectionnés</p>
+                <div class="h-divider"></div>
+                <button class="btn-bulk approve" onclick="bulkApprove()">
+                    APPROUVER LA SÉLECTION <i class="fas fa-check-circle ms-2"></i>
+                </button>
+                <button class="btn-bulk reject" onclick="bulkReject()">
+                    REJETER TOUT <i class="fas fa-times-circle ms-2"></i>
                 </button>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Modal de détails -->
-<div class="modal fade" id="detailsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-info-circle me-2"></i>Détails de la demande
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="detailsContent">
-                <!-- Le contenu sera chargé dynamiquement -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+    <!-- Modal Reject Premium -->
+    <div class="modal fade luxury-modal" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass-card-luxury">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">DÉCISION DE <span class="text-gold">REJET</span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-white-50 mb-4">Veuillez spécifier la raison de cette décision exclusive.</p>
+                    <form id="rejectForm">
+                        <input type="hidden" id="rejectUserId" name="user_id">
+                        <div class="mb-3">
+                            <textarea class="luxury-textarea" id="motifRejet" rows="4"
+                                placeholder="Expliquez les raisons du rejet avec prestige..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn-luxury-outline sm" data-bs-dismiss="modal">ANNULER</button>
+                    <button type="button" class="btn-luxury-primary sm danger" onclick="confirmReject()">
+                        CONFIRMER LE REJET
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<style>
-    .border-left-primary { border-left: 0.25rem solid #0d6efd !important; }
-    .border-left-success { border-left: 0.25rem solid #198754 !important; }
-    .border-left-danger { border-left: 0.25rem solid #dc3545 !important; }
-    .border-left-info { border-left: 0.25rem solid #0dcaf0 !important; }
-    .text-gray-800 { color: #5a5c69 !important; }
-    .text-xs { font-size: 0.7rem; }
-    
-    .demande-row { transition: all 0.2s ease; }
-    .demande-row:hover { background-color: #f8f9fa !important; transform: translateY(-1px); }
-    
-    .avatar-sm { width: 40px; height: 40px; }
-    
-    .btn-group .btn { border-radius: 0.375rem !important; }
-    .btn-group .btn:first-child { border-top-left-radius: 0.375rem !important; border-bottom-left-radius: 0.375rem !important; }
-    .btn-group .btn:last-child { border-top-right-radius: 0.375rem !important; border-bottom-right-radius: 0.375rem !important; }
-</style>
+    <style>
+        /* Premium Styling Tokens */
+        .luxury-dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
 
-<script>
-// Variables globales
-let selectedDemandes = new Set();
-let currentFilters = {};
+        .premium-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 800;
+            font-size: 2.5rem;
+        }
 
-// Initialisation
-document.addEventListener('DOMContentLoaded', function() {
-    setupEventListeners();
-    updateStats();
-});
+        .premium-subtitle {
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
 
-// Configuration des événements
-function setupEventListeners() {
-    // Sélection globale
-    document.getElementById('selectAll').addEventListener('change', function() {
-        const checkboxes = document.querySelectorAll('.demande-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
-            if (this.checked) {
-                selectedDemandes.add(checkbox.value);
-            } else {
-                selectedDemandes.delete(checkbox.value);
+        /* Stat Cards */
+        .glass-stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .glass-stat-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-icon-box {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-right: 1.5rem;
+            z-index: 2;
+        }
+
+        .stat-content {
+            z-index: 2;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-weight: 800;
+            margin-bottom: 0;
+            font-size: 2rem;
+        }
+
+        /* Gradients */
+        .bg-gold-gradient {
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            color: white;
+        }
+
+        .bg-emerald-gradient {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .bg-blue-gradient {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .bg-stopwatch-gradient {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            color: white;
+        }
+
+        .stat-glow {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            filter: blur(50px);
+            opacity: 0.15;
+            right: -30px;
+            top: -30px;
+            z-index: 1;
+        }
+
+        .stat-glow.gold {
+            background: #d4af37;
+        }
+
+        .stat-glow.emerald {
+            background: #10b981;
+        }
+
+        .stat-glow.blue {
+            background: #3b82f6;
+        }
+
+        .stat-glow.purple {
+            background: #8b5cf6;
+        }
+
+        /* Buttons Actions */
+        .btn-group-luxury {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-luxury-action {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-luxury-action:hover {
+            background: var(--luxury-gold);
+            color: var(--luxury-dark);
+            border-color: var(--luxury-gold);
+            transform: translateY(-2px);
+        }
+
+        .btn-luxury-action.secondary:hover {
+            background: white;
+            color: black;
+            border-color: white;
+        }
+
+        /* Luxury Table */
+        .glass-card-luxury {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .card-header-luxury {
+            padding: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .luxury-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .luxury-table th {
+            padding: 1.5rem 2rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .luxury-row {
+            transition: all 0.3s ease;
+        }
+
+        .luxury-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .luxury-row td {
+            padding: 1.5rem 2rem;
+            vertical-align: middle;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .avatar-luxury {
+            width: 45px;
+            height: 45px;
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            color: var(--luxury-gold);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            margin-right: 1.25rem;
+        }
+
+        .row-main-text {
+            font-weight: 700;
+            font-size: 1rem;
+            color: white;
+        }
+
+        .row-sub-text {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .wait-badge-luxury {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .wait-badge-luxury.optimal {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .wait-badge-luxury.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+
+        .wait-badge-luxury.urgent {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        /* Action Buttons */
+        .action-stack {
+            display: flex;
+            gap: 0.6rem;
+            justify-content: flex-end;
+        }
+
+        .btn-action-luxury {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .btn-action-luxury:hover {
+            transform: scale(1.15) translateY(-3px);
+        }
+
+        .btn-action-luxury.success:hover {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-action-luxury.danger:hover {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+            box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-action-luxury.info:hover {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Inputs & Selects */
+        .premium-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 0.5rem;
+            display: block;
+            letter-spacing: 0.1em;
+        }
+
+        .luxury-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .luxury-input-wrapper i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .luxury-input,
+        .luxury-select,
+        .luxury-textarea {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .luxury-input {
+            padding-left: 2.5rem;
+        }
+
+        .luxury-input:focus,
+        .luxury-select:focus,
+        .luxury-textarea:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--luxury-gold);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1);
+        }
+
+        .btn-premium-search {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            border: 1px solid var(--luxury-gold);
+            padding: 0.75rem;
+            border-radius: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            transition: all 0.3s ease;
+        }
+
+        .btn-premium-search:hover {
+            background: var(--luxury-gold);
+            color: var(--luxury-dark);
+            transform: scale(1.02);
+        }
+
+        /* Checkbox Premium */
+        .luxury-checkbox {
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            appearance: none;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .luxury-checkbox:checked {
+            background: var(--luxury-gold);
+            border-color: var(--luxury-gold);
+        }
+
+        .luxury-checkbox:checked:after {
+            content: '✓';
+            position: absolute;
+            color: var(--luxury-dark);
+            font-weight: 900;
+            font-size: 14px;
+            left: 4px;
+            top: -1px;
+        }
+
+        /* Floating Bulk Actions */
+        .bulk-actions-floating {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--luxury-gold);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .btn-bulk {
+            padding: 0.6rem 1.5rem;
+            border-radius: 30px;
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            font-weight: 800;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .btn-bulk.approve {
+            background: var(--luxury-gold);
+            border-color: var(--luxury-gold);
+            color: var(--luxury-dark);
+        }
+
+        .btn-bulk:hover {
+            transform: scale(1.05);
+        }
+
+        .h-divider {
+            width: 1px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Badges */
+        .badge-luxury {
+            background: rgba(212, 175, 55, 0.15);
+            color: var(--luxury-gold);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 0.4rem 1rem;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+        }
+
+        /* Animations */
+        .animate-fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .animate-fade-up {
+            animation: fadeUp 0.8s ease-out backwards;
+        }
+
+        .animate-slide-up {
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
             }
-        });
-        updateBulkActions();
-    });
 
-    // Sélection individuelle
-    document.querySelectorAll('.demande-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            if (this.checked) {
-                selectedDemandes.add(this.value);
-            } else {
-                selectedDemandes.delete(this.value);
+            to {
+                opacity: 1;
             }
-            updateBulkActions();
-        });
-    });
-}
+        }
 
-// Mise à jour des actions en lot
-function updateBulkActions() {
-    const bulkActions = document.getElementById('bulkActions');
-    const selectedCount = document.getElementById('selectedCount');
-    
-    if (selectedDemandes.size > 0) {
-        bulkActions.style.display = 'block';
-        selectedCount.textContent = selectedDemandes.size;
-    } else {
-        bulkActions.style.display = 'none';
-    }
-}
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
 
-// Approuver un utilisateur
-function approveUser(userId) {
-    if (confirm('Êtes-vous sûr de vouloir approuver cette demande ?')) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/dashboard/approuver/${userId}`;
-        
-        const csrfToken = document.createElement('input');
-        csrfToken.type = 'hidden';
-        csrfToken.name = '_token';
-        csrfToken.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        
-        form.appendChild(csrfToken);
-        document.body.appendChild(form);
-        form.submit();
-    }
-}
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
-// Afficher le modal de rejet
-function showRejectModal(userId) {
-    document.getElementById('rejectUserId').value = userId;
-    const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
-    modal.show();
-}
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 50px);
+            }
 
-// Confirmer le rejet
-function confirmReject() {
-    const userId = document.getElementById('rejectUserId').value;
-    const motif = document.getElementById('motifRejet').value;
-    
-    if (!motif.trim()) {
-        alert('Veuillez saisir un motif de rejet.');
-        return;
-    }
-    
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/dashboard/rejeter/${userId}`;
-    
-    const csrfToken = document.createElement('input');
-    csrfToken.type = 'hidden';
-    csrfToken.name = '_token';
-    csrfToken.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    
-    const motifInput = document.createElement('input');
-    motifInput.type = 'hidden';
-    motifInput.name = 'motif_rejet';
-    motifInput.value = motif;
-    
-    form.appendChild(csrfToken);
-    form.appendChild(motifInput);
-    document.body.appendChild(form);
-    form.submit();
-}
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+    </style>
 
-// Voir les détails
-function viewDetails(userId) {
-    // Ici on pourrait charger les détails via AJAX
-    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
-    document.getElementById('detailsContent').innerHTML = `
-        <div class="text-center py-4">
-            <i class="bi bi-info-circle text-info" style="font-size: 3rem;"></i>
-            <h5 class="mt-3">Détails de la demande #${userId}</h5>
-            <p class="text-muted">Fonctionnalité en cours de développement...</p>
-        </div>
-    `;
-    modal.show();
-}
+    @push('scripts')
+        <script>
+            // Variables globales
+            let selectedDemandes = new Set();
 
-// Appliquer les filtres
-function applyFilters() {
-    const search = document.getElementById('searchInput').value;
-    const sort = document.getElementById('sortSelect').value;
-    const status = document.getElementById('statusFilter').value;
-    
-    currentFilters = { search, sort, status };
-    
-    // Ici on pourrait appliquer les filtres via AJAX
-    console.log('Filtres appliqués:', currentFilters);
-}
+            // Initialisation
+            document.addEventListener('DOMContentLoaded', function () {
+                setupEventListeners();
+                fetchStats();
+                setInterval(fetchStats, 10000);
+                setInterval(refreshData, 30000);
+            });
 
-// Actualiser les données
-function refreshData() {
-    location.reload();
-}
+            function setupEventListeners() {
+                // Sélection globale
+                const selectAll = document.getElementById('selectAll');
+                if (selectAll) {
+                    selectAll.addEventListener('change', function () {
+                        const checkboxes = document.querySelectorAll('.demande-checkbox');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = this.checked;
+                            if (this.checked) selectedDemandes.add(checkbox.value);
+                            else selectedDemandes.delete(checkbox.value);
+                        });
+                        updateBulkActions();
+                    });
+                }
 
-// Exporter les données
-function exportData() {
-    // Ici on pourrait exporter les données
-    alert('Fonctionnalité d\'export en cours de développement...');
-}
+                // Sélection individuelle
+                document.body.addEventListener('change', function (e) {
+                    if (e.target.classList.contains('demande-checkbox')) {
+                        const checkbox = e.target;
+                        if (checkbox.checked) selectedDemandes.add(checkbox.value);
+                        else selectedDemandes.delete(checkbox.value);
+                        updateBulkActions();
+                    }
+                });
+            }
 
-// Actions en lot
-function bulkApprove() {
-    if (selectedDemandes.size === 0) return;
-    
-    if (confirm(`Êtes-vous sûr de vouloir approuver ${selectedDemandes.size} demande(s) ?`)) {
-        // Ici on pourrait traiter les approbations en lot
-        console.log('Approbation en lot:', Array.from(selectedDemandes));
-    }
-}
+            function updateBulkActions() {
+                const bulkDiv = document.getElementById('bulkActions');
+                const countSpan = document.getElementById('selectedCount');
+                if (selectedDemandes.size > 0) {
+                    bulkDiv.style.display = 'block';
+                    countSpan.textContent = selectedDemandes.size;
+                } else {
+                    bulkDiv.style.display = 'none';
+                }
+            }
 
-function bulkReject() {
-    if (selectedDemandes.size === 0) return;
-    
-    if (confirm(`Êtes-vous sûr de vouloir rejeter ${selectedDemandes.size} demande(s) ?`)) {
-        // Ici on pourrait traiter les rejets en lot
-        console.log('Rejet en lot:', Array.from(selectedDemandes));
-    }
-}
+            async function fetchStats() {
+                try {
+                    const response = await fetch('/dashboard/statistiques-data?t=' + Date.now());
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.stats) {
+                            updateStatValue('totalApproved', data.stats.entrepreneurs_approuves);
+                            updateStatValue('approvedToday', data.stats.approuves_aujourdhui || 0);
+                            // On pourrait ajouter d'autres stats ici
+                        }
+                    }
+                } catch (e) { console.error("Error stats", e); }
+            }
 
-// Mise à jour des statistiques
-function updateStats() {
-    // Ici on pourrait mettre à jour les stats en temps réel
-    document.getElementById('approvedToday').textContent = '3';
-    document.getElementById('rejectedToday').textContent = '1';
-    document.getElementById('avgWaitTime').textContent = '2.5h';
-}
-</script>
+            function updateStatValue(id, val) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = val;
+            }
+
+            function refreshData() {
+                // Logique simplifiée pour l'exemple, rafraîchit la page pour plus de fiabilité visuelle sur le dashboard
+                window.location.reload();
+            }
+
+            function approveUser(id) {
+                if (confirm('Approuver officiellement ce partenaire Eat&Drink ?')) {
+                    performPost(`/dashboard/approuver/${id}`);
+                }
+            }
+
+            function confirmReject() {
+                const id = document.getElementById('rejectUserId').value;
+                const motif = document.getElementById('motifRejet').value;
+                if (!motif.trim()) { alert('Un motif prestigieux est requis.'); return; }
+                performPost(`/dashboard/rejeter/${id}`, { motif_rejet: motif });
+            }
+
+            function performPost(url, data = {}) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = url;
+
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = "{{ csrf_token() }}";
+                form.appendChild(csrf);
+
+                for (const [k, v] of Object.entries(data)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = k;
+                    input.value = v;
+                    form.appendChild(input);
+                }
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+
+            function showRejectModal(id) {
+                document.getElementById('rejectUserId').value = id;
+                new bootstrap.Modal(document.getElementById('rejectModal')).show();
+            }
+
+            function viewDetails(id) {
+                alert("Chargement du portfolio du partenaire #" + id + "...");
+            }
+        </script>
+    @endpush
 @endsection

@@ -28,33 +28,58 @@ class AuthController extends Controller
         return redirect()->route('login')->with('status', 'Inscription réussie !');
     }
 
-    // Connexion
-  // Connexion
-public function login(Request $request)
-{
-    $credentials = $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required'],
-    ]);
+    // Inscription spécifique au Défi Elite Gold
+    public function inscriptionDefiPost(Request $request)
+    {
+        $request->validate([
+            'nom_entreprise' => 'required|string|max:255',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|confirmed|min:6',
+        ]);
 
-    if (Auth::attempt($credentials)) {
-        $request->session()->regenerate();
+        User::create([
+            'nom_entreprise' => $request->nom_entreprise,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => 'client', // Rôle par défaut
+            'statut_joueur' => 'en_attente',
+            'pepites' => 0,
+            'rang' => 'Bronze',
+        ]);
 
-        $user = Auth::user();
-        if ($user->role === 'admin') {
-           return redirect()->route('admin.dashboard')->with('status', 'Bienvenue administrateur !');
-
-        } elseif ($user->role === 'entrepreneur_approuve') {
-            return redirect()->route('entrepreneur.dashboard')->with('status', 'Bienvenue sur votre tableau de bord !');
-        } else {
-            return redirect()->route('auth.statut');
-        }
+        return redirect()->route('login')->with('status', 'Votre demande de participation au Défi Elite Gold a été enregistrée. Elle est en attente de validation par l\'administration.');
     }
 
-    return back()->withErrors([
-        'email' => 'Identifiants invalides.',
-    ])->onlyInput('email');
-}
+    // Connexion
+    // Connexion
+    public function login(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+        ]);
+
+        if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
+
+            $user = Auth::user();
+            if ($user->role === 'admin') {
+                return redirect()->route('admin.dashboard')->with('status', 'Bienvenue administrateur !');
+
+            } elseif ($user->role === 'entrepreneur_approuve') {
+                return redirect()->route('entrepreneur.dashboard')->with('status', 'Bienvenue sur votre tableau de bord !');
+            } elseif ($user->role === 'entrepreneur_en_attente') {
+                return redirect()->route('auth.statut');
+            } else {
+                // Pour les clients / joueurs
+                return redirect()->route('accueil');
+            }
+        }
+
+        return back()->withErrors([
+            'email' => 'Identifiants invalides.',
+        ])->onlyInput('email');
+    }
 
 
     // Déconnexion
